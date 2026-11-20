@@ -269,6 +269,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a955ed84d4dfc493cad6c37fd49d7c47, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WeatherManager
+  apiKey: ccff35769d4969c7b8a1ca7d8945c6ad
+  sun: {fileID: 410087040}
+  sunnySkybox: {fileID: 2100000, guid: fa95802f80bd745cfb5e9c89f7e22341, type: 2}
+  cloudySkybox: {fileID: 2100000, guid: 1700716a8dd8948cf8c66ea34a2786d5, type: 2}
+  stormySkybox: {fileID: 2100000, guid: ab675e6698bde46fd87143fb0d7580cb, type: 2}
+  nightSkybox: {fileID: 2100000, guid: f8a60d169ab8a46b09c9b01a3e51601f, type: 2}
+  daySunColor: {r: 1, g: 0.95, b: 0.84, a: 1}
+  sunsetSunColor: {r: 1, g: 0.55, b: 0.25, a: 1}
+  maxSunIntensity: 1.2
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0

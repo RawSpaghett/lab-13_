@@ -1,124 +1,158 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
+using System.Xml;
 using UnityEngine;
 using UnityEngine.Networking;
 
-
-/*
-   Check what data you receive.
-   - Next, we need to parse the XML or JSON and use the data that we receive to make changes in our scene. We want to change:
-   - The skybox based on weather
-   - The sun's intensity and color
-   - You can read the PC time (System.DateTime.Now) (System.DateTime Methods - ADO.NET | Microsoft Learn) and based on time change between where you are and the city, you could also change day/night cycle.
-   - Make a simple UI or inspector-based choice to change the city. When we change the city, the scene should update.
- */
-
-//USE A HOTSPOTTTTTT
-
-public class WeatherManager: MonoBehaviour
+public class WeatherManager : MonoBehaviour
 {
-   private class BypassCertificate : CertificateHandler //fixes certificate issues
-   {
-      protected override bool ValidateCertificate(byte[] certificateData) => true;
-   }
+    [Header("API Settings")]
+    [SerializeField] private string apiKey = "ccff35769d4969c7b8a1ca7d8945c6ad";
 
-   private string xmlApi;
-   private IEnumerator CallAPI(string url, Action<string> callback) {
-      using (UnityWebRequest request = UnityWebRequest.Get(url)) {
-         //bypass
-         request.certificateHandler = new BypassCertificate();
-         request.disposeCertificateHandlerOnDispose = true;
-         yield return request.SendWebRequest();
-         
-         if (request.result == UnityWebRequest.Result.ConnectionError) {
-            Debug.LogError($"network problem: {request.error}");
-         } else if (request.result == UnityWebRequest.Result.ProtocolError) {
-            Debug.LogError($"response error: {request.responseCode}");
-         } else {
-             callback(request.downloadHandler.text);
-         }
-      }
-   }
+    [Header("Scene References")]
+    [SerializeField] private Light sun;
+    
+    [Header("Skyboxes")]
+    [SerializeField] private Material sunnySkybox;
+    [SerializeField] private Material cloudySkybox;
+    [SerializeField] private Material stormySkybox;
+    [SerializeField] private Material nightSkybox;
 
-   public IEnumerator GetWeatherXML(Action<string> callback) {
-      return CallAPI(xmlApi, callback);
-   }
-   
-   public void OnXMLDataLoaded(string data) 
-   {
-      Debug.Log(data);
-   }
-   
-   
-   //skyboxes ------
-   //sunny
-   //cloudy
-   //stormy
-   
-   
-   /*
-      <current>
-      <city id="4167147" name="Orlando">
-      <coord lon="-81.3792" lat="28.5383"/>
-      <country>US</country>
-      <timezone>-18000</timezone>
-      <sun rise="2026-11-18T11:50:34" set="2026-11-18T22:31:06"/> -------- Sun Intensity and color, if nighttime = off
-      </city>
-      <temperature value="293.65" min="292.53" max="294.18" unit="kelvin"/>
-      <feels_like value="294.11" unit="kelvin"/>
-      <humidity value="90" unit="%"/>
-      <pressure value="1020" unit="hPa"/>
-      <wind>
-      <speed value="7.2" unit="m/s" name="Moderate breeze"/>
-      <gusts value="11.83"/>
-         <direction value="70" code="ENE" name="East-northeast"/>
-      </wind>
-      <clouds value="100" name="overcast clouds"/>
-      <visibility value="10000"/>
-         <precipitation mode="no"/>
-         <weather number="804" value="overcast clouds" icon="04n"/> ---------- Skyboxes
-      <lastupdate value="2026-11-19T01:12:44"/>
-         </current>
-   */
-   private void SetCity()
-   {
-      StartCoroutine(GetWeatherXML(OnXMLDataLoaded));
-   }
-   
-   [ContextMenu("Orlando")]
-   private void SetOrlando()
-   {
-      xmlApi = "https://api.openweathermap.org/data/2.5/weather?q=Orlando,us&mode=xml&appid=ccff35769d4969c7b8a1ca7d8945c6ad";
-      SetCity();
-   }
+    [Header("Sun Settings")]
+    [SerializeField] private Color daySunColor = new Color(1f, 0.95f, 0.84f);
+    [SerializeField] private Color sunsetSunColor = new Color(1f, 0.55f, 0.25f);
+    [SerializeField] private float maxSunIntensity = 1.2f;
 
-   [ContextMenu("Topeka")]
-   private void SetTopeka()
-   {
-      xmlApi = "https://api.openweathermap.org/data/2.5/weather?q=Orlando,us&mode=xml&appid=APIKEY";
-      SetCity();
-   }
+    private string xmlApi;
 
-   [ContextMenu("Sacramento")]
-   private void SetSacramento()
-   {
-      xmlApi = "https://api.openweathermap.org/data/2.5/weather?q=Orlando,us&mode=xml&appid=APIKEY";
-      SetCity();
-   }
+    private class BypassCertificate : CertificateHandler
+    {
+        protected override bool ValidateCertificate(byte[] certificateData) => true;
+    }
 
-   [ContextMenu("Madrid")]
-   private void SetMadrid()
-   {
-      xmlApi = "https://api.openweathermap.org/data/2.5/weather?q=Orlando,us&mode=xml&appid=APIKEY";
-      SetCity();
-   }
+    private void Start()
+    {
+        SetOrlando();
+    }
 
-   [ContextMenu("Canberra")]
-   private void SetCanberra()
-   {
-      xmlApi = "https://api.openweathermap.org/data/2.5/weather?q=Orlando,us&mode=xml&appid=APIKEY";
-      SetCity();
-   }
-   
+    private IEnumerator CallAPI(string url, Action<string> callback)
+    {
+        using (UnityWebRequest request = UnityWebRequest.Get(url))
+        {
+            request.certificateHandler = new BypassCertificate();
+            request.disposeCertificateHandlerOnDispose = true;
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.ConnectionError)
+            {
+                Debug.LogError($"network problem: {request.error}");
+            }
+            else if (request.result == UnityWebRequest.Result.ProtocolError)
+            {
+                Debug.LogError($"response error: {request.responseCode}");
+            }
+            else
+            {
+                callback(request.downloadHandler.text);
+            }
+        }
+    }
+
+    private void OnXMLDataLoaded(string xmlData)
+    {
+        XmlDocument doc = new XmlDocument();
+        doc.LoadXml(xmlData);
+
+        XmlNode weatherNode = doc.SelectSingleNode("/current/weather");
+        int weatherCode = int.Parse(weatherNode.Attributes["number"].Value);
+        string weatherDesc = weatherNode.Attributes["value"].Value;
+
+        XmlNode timezoneNode = doc.SelectSingleNode("/current/city/timezone");
+        int timezoneOffsetSeconds = int.Parse(timezoneNode.InnerText);
+
+        XmlNode sunNode = doc.SelectSingleNode("/current/city/sun");
+        DateTime sunriseUtc = DateTime.Parse(sunNode.Attributes["rise"].Value, null, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal);
+        DateTime sunsetUtc = DateTime.Parse(sunNode.Attributes["set"].Value, null, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal);
+
+        DateTime cityLocalTime = DateTime.UtcNow.AddSeconds(timezoneOffsetSeconds);
+        DateTime citySunrise = sunriseUtc.AddSeconds(timezoneOffsetSeconds);
+        DateTime citySunset = sunsetUtc.AddSeconds(timezoneOffsetSeconds);
+
+        bool isDaytime = cityLocalTime >= citySunrise && cityLocalTime <= citySunset;
+
+        Debug.Log($"Weather: {weatherDesc} ({weatherCode}) | City Time: {cityLocalTime:HH:mm} | Daytime: {isDaytime}");
+
+        SetSkybox(weatherCode, isDaytime);
+        SetSun(weatherCode, isDaytime, cityLocalTime, citySunrise, citySunset);
+    }
+
+    private void SetSkybox(int weatherCode, bool isDaytime)
+    {
+        if (!isDaytime && nightSkybox != null)
+        {
+            RenderSettings.skybox = nightSkybox;
+        }
+        else if (weatherCode >= 200 && weatherCode < 700)
+        {
+            RenderSettings.skybox = stormySkybox;
+        }
+        else if (weatherCode >= 700 && weatherCode > 800)
+        {
+            RenderSettings.skybox = cloudySkybox;
+        }
+        else
+        {
+            RenderSettings.skybox = sunnySkybox;
+        }
+
+        DynamicGI.UpdateEnvironment();
+    }
+
+    private void SetSun(int weatherCode, bool isDaytime, DateTime now, DateTime sunrise, DateTime sunset)
+    {
+        if (sun == null) return;
+
+        if (!isDaytime)
+        {
+            sun.intensity = 0f;
+            sun.transform.rotation = Quaternion.Euler(-90f, 170f, 0f);
+            return;
+        }
+
+        double totalDayMinutes = (sunset - sunrise).TotalMinutes;
+        double elapsedMinutes = (now - sunrise).TotalMinutes;
+        float dayProgress = Mathf.Clamp01((float)(elapsedMinutes / totalDayMinutes));
+
+        float sunAngle = dayProgress * 180f;
+        sun.transform.rotation = Quaternion.Euler(sunAngle, 170f, 0f);
+
+        float weatherMultiplier = 1f;
+        if (weatherCode >= 200 && weatherCode < 700) weatherMultiplier = 0.3f;
+        else if (weatherCode > 800) weatherMultiplier = 0.6f;
+
+        float sunHeightFactor = Mathf.Sin(dayProgress * Mathf.PI);
+        sun.intensity = maxSunIntensity * sunHeightFactor * weatherMultiplier;
+        sun.color = Color.Lerp(sunsetSunColor, daySunColor, sunHeightFactor);
+    }
+
+    private void FetchCityWeather(string cityQuery)
+    {
+        xmlApi = $"https://api.openweathermap.org/data/2.5/weather?q={cityQuery}&mode=xml&appid={apiKey}";
+        StartCoroutine(CallAPI(xmlApi, OnXMLDataLoaded));
+    }
+
+    [ContextMenu("Orlando")]
+    private void SetOrlando() => FetchCityWeather("Orlando,us");
+
+    [ContextMenu("Topeka")]
+    private void SetTopeka() => FetchCityWeather("Topeka,us");
+
+    [ContextMenu("Sacramento")]
+    private void SetSacramento() => FetchCityWeather("Sacramento,us");
+
+    [ContextMenu("Madrid")]
+    private void SetMadrid() => FetchCityWeather("Madrid,es");
+
+    [ContextMenu("Canberra")]
+    private void SetCanberra() => FetchCityWeather("Canberra,au");
 }
